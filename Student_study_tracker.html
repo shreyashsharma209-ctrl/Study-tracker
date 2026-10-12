@@ -1,371 +1,192 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Study Tracker</title>
-  <!-- Fonts are optional: if offline, the fallback stacks in style.css are used -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
-  <style>
-/* ===== Design tokens (light is default; dark overrides below) ===== */
-:root {
-  --bg: #EEF2F7;
-  --surface: #FFFFFF;
-  --ink: #16202E;
-  --muted: #5C6B7E;
-  --line: #D9E1EC;
-  --accent: #2457C5;
-  --accent-ink: #FFFFFF;
-  --break: #2E8B63;
-  --high: #D64545;
-  --medium: #D9A100;
-  --low: #3C9D6B;
-  --radius: 14px;
-  --head: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
-  --body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
-}
-[data-theme="dark"] {
-  --bg: #0E1520;
-  --surface: #172131;
-  --ink: #E7EEF7;
-  --muted: #92A2B8;
-  --line: #27354A;
-  --accent: #7FB0FF;
-  --accent-ink: #0E1520;
-  --break: #5CC795;
-}
-
-* { box-sizing: border-box; }
-body {
-  margin: 0; background: var(--bg); color: var(--ink);
-  font: 400 1rem/1.5 var(--body);
-  transition: background .3s, color .3s;
-}
-h1, h2, .stat b, #clock { font-family: var(--head); }
-h1 { margin: 0; font-size: 1.6rem; }
-h2 { margin: 0 0 1rem; font-size: 1.15rem; }
-:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-
-/* ===== Layout: header, stat row, tasks (wide) + timer (side) ===== */
-.top { display: flex; justify-content: space-between; align-items: center; max-width: 1100px; margin: 0 auto; padding: 1.25rem 1rem; }
-.layout {
-  max-width: 1100px; margin: 0 auto; padding: 0 1rem 3rem;
-  display: grid; gap: 1rem; grid-template-columns: 1fr 320px; align-items: start;
-}
-.stats { grid-column: 1 / -1; display: grid; gap: 1rem; grid-template-columns: repeat(4, 1fr); }
-.timer { position: sticky; top: 1rem; text-align: center; }
-@media (max-width: 860px) {
-  .layout { grid-template-columns: 1fr; }
-  .stats { grid-template-columns: repeat(2, 1fr); }
-  .timer { position: static; order: -1; }
-}
-
-/* ===== Panels and stats ===== */
-.panel, .stat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); transition: background .3s, border-color .3s; }
-.panel { padding: 1.25rem; }
-.stat { padding: 1rem 1.25rem; display: flex; flex-direction: column; }
-.stat b { font-size: 2rem; line-height: 1.1; }
-.stat span { color: var(--muted); font-size: .9rem; }
-
-/* ===== Buttons, inputs ===== */
-.btn { font: 600 .95rem var(--body); padding: .6rem 1rem; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; transition: transform .1s, background .2s, opacity .2s; }
-.btn:hover:not(:disabled) { background: var(--bg); }
-.btn:active:not(:disabled) { transform: scale(.97); }
-.btn:disabled { opacity: .45; cursor: not-allowed; }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-.btn.primary:hover:not(:disabled) { background: var(--accent); filter: brightness(1.08); }
-.btn.ghost { background: transparent; }
-input, select { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: .55rem .7rem; min-width: 0; }
-
-/* ===== Task form and filters ===== */
-.form { display: grid; gap: .6rem; grid-template-columns: 2fr 1fr 1fr 1fr auto; margin-bottom: 1rem; }
-@media (max-width: 700px) { .form { grid-template-columns: 1fr 1fr; } #fTitle, .form .primary { grid-column: 1 / -1; } }
-.filters { display: flex; flex-wrap: wrap; gap: .6rem; justify-content: space-between; margin-bottom: .75rem; }
-.seg { display: inline-flex; background: var(--bg); border-radius: 10px; padding: 3px; }
-.seg button { font: 600 .9rem var(--body); border: 0; background: transparent; color: var(--muted); padding: .4rem .8rem; border-radius: 8px; cursor: pointer; transition: background .2s, color .2s; }
-.seg button.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.15); }
-
-/* ===== Task list ===== */
-.list { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
-.task { display: flex; align-items: center; gap: .8rem; padding: .7rem .8rem; border: 1px solid var(--line); border-left: 4px solid var(--medium); border-radius: 10px; }
-.task.prio-high { border-left-color: var(--high); }
-.task.prio-low { border-left-color: var(--low); }
-.body { flex: 1; min-width: 0; }
-.title { font-weight: 600; overflow-wrap: anywhere; /* animated strike-through line */
-  background: linear-gradient(currentColor, currentColor) no-repeat 0 58% / 0% 2px; transition: background-size .35s ease, color .3s; }
-.task.done .title { background-size: 100% 2px; color: var(--muted); }
-.chips { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .2rem; font-size: .8rem; color: var(--muted); }
-.chip { background: var(--bg); border-radius: 999px; padding: .05rem .55rem; }
-.chip.late { color: var(--high); font-weight: 600; }
-.check { flex: none; width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--line); background: transparent; cursor: pointer; display: grid; place-items: center; transition: background .25s, border-color .25s; }
-.check svg { width: 16px; height: 16px; fill: none; stroke: var(--accent-ink); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset .3s .1s; }
-.task.done .check { background: var(--low); border-color: var(--low); }
-.task.done .check svg { stroke-dashoffset: 0; }
-.del { flex: none; border: 0; background: transparent; color: var(--muted); font-size: 1.4rem; line-height: 1; cursor: pointer; border-radius: 8px; padding: .1rem .5rem; }
-.del:hover { color: var(--high); background: var(--bg); }
-.empty { text-align: center; color: var(--muted); padding: 1.5rem 0; }
-
-/* ===== Timer ===== */
-.dial { position: relative; width: 220px; margin: 1.25rem auto; }
-.dial svg { width: 100%; transform: rotate(-90deg); }
-.track, .ring { fill: none; stroke-width: 10; }
-.track { stroke: var(--line); }
-.ring { stroke: var(--accent); stroke-linecap: round; stroke-dasharray: 553; stroke-dashoffset: 0; transition: stroke-dashoffset .3s linear, stroke .3s; }
-.timer.is-break .ring { stroke: var(--break); }
-.readout { position: absolute; inset: 0; display: grid; place-content: center; }
-#clock { font-size: 3rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-#modeLabel { color: var(--muted); }
-.controls { display: flex; gap: .5rem; justify-content: center; }
-.hint { color: var(--muted); font-size: .85rem; margin: 1rem 0 0; }
-
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
-
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Study Tracker</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="script.js" defer></script>
 </head>
 <body>
-  <header class="top">
-    <h1>Study Tracker</h1>
-    <button id="themeBtn" class="btn ghost" type="button" aria-label="Switch colour theme">Dark mode</button>
-  </header>
 
-  <main class="layout">
-    <!-- 1. Dashboard overview -->
-    <section class="stats" aria-label="Overview">
-      <div class="stat"><b id="statTotal">0</b><span>Total tasks</span></div>
-      <div class="stat"><b id="statDone">0</b><span>Completed</span></div>
-      <div class="stat"><b id="statHours">0.0</b><span>Study hours</span></div>
-      <div class="stat"><b id="statSessions">0</b><span>Focus sessions</span></div>
-    </section>
+    <div class="app">
 
-    <!-- 2. Task manager -->
-    <section class="panel tasks" aria-labelledby="tasksTitle">
-      <h2 id="tasksTitle">Tasks and assignments</h2>
+        <aside class="sidebar">
+            <div class="logo">
+                <div class="logo-icon">S</div>
+                <span>Study<span class="purple-text">Track</span></span>
+            </div>
 
-      <form id="taskForm" class="form" autocomplete="off">
-        <input id="fTitle" placeholder="What do you need to do?" required maxlength="80" aria-label="Task title">
-        <input id="fCourse" list="courseList" placeholder="Course" required maxlength="30" aria-label="Course name">
-        <datalist id="courseList"></datalist>
-        <input id="fDue" type="date" aria-label="Due date">
-        <select id="fPrio" aria-label="Priority">
-          <option value="high">High</option>
-          <option value="medium" selected>Medium</option>
-          <option value="low">Low</option>
-        </select>
-        <button class="btn primary" type="submit">Add task</button>
-      </form>
+            <p class="menu-title">MENU</p>
 
-      <div class="filters">
-        <div class="seg" role="group" aria-label="Filter by status">
-          <button class="on" data-status="all" type="button">All</button>
-          <button data-status="pending" type="button">Pending</button>
-          <button data-status="done" type="button">Completed</button>
-        </div>
-        <select id="courseFilter" aria-label="Filter by course"></select>
-      </div>
+            <nav>
+                <a href="#dashboard" class="nav-link active">
+                    <span>▦</span> Dashboard
+                </a>
+                <a href="#subjects" class="nav-link">
+                    <span>▤</span> My Subjects
+                </a>
+                <a href="#tasks" class="nav-link">
+                    <span>✓</span> Study Tasks
+                </a>
+            </nav>
 
-      <ul id="taskList" class="list"></ul>
-    </section>
+            <div class="sidebar-bottom">
+                <div class="mini-card">
+                    <span class="mini-icon">✦</span>
+                    <h3>Keep going!</h3>
+                    <p>Small steps every day lead to big results.</p>
+                </div>
+                <p class="sidebar-footer">STUDY SMART. GROW DAILY.</p>
+            </div>
+        </aside>
 
-    <!-- 3. Pomodoro timer -->
-    <aside class="panel timer" aria-labelledby="timerTitle">
-      <h2 id="timerTitle">Focus timer</h2>
-      <div class="seg" role="group" aria-label="Timer mode">
-        <button class="on" data-mode="work" type="button">Focus 25</button>
-        <button data-mode="break" type="button">Break 5</button>
-      </div>
-      <div class="dial">
-        <svg viewBox="0 0 200 200" aria-hidden="true">
-          <circle class="track" cx="100" cy="100" r="88"/>
-          <circle id="ring" class="ring" cx="100" cy="100" r="88"/>
-        </svg>
-        <div class="readout">
-          <time id="clock" aria-live="off">25:00</time>
-          <span id="modeLabel">Focus</span>
-        </div>
-      </div>
-      <div class="controls">
-        <button id="startBtn" class="btn primary" type="button">Start</button>
-        <button id="pauseBtn" class="btn" type="button" disabled>Pause</button>
-        <button id="resetBtn" class="btn ghost" type="button">Reset</button>
-      </div>
-      <p class="hint">Finished focus sessions are added to your study hours.</p>
-    </aside>
-  </main>
+        <main class="main-content" id="dashboard">
 
-  <script>
-/* Study Tracker: tasks, stats, theme and Pomodoro timer. Data lives in localStorage. */
-'use strict';
+            <header class="topbar">
+                <div>
+                    <p class="eyebrow">YOUR PERSONAL WORKSPACE</p>
+                    <h1>Study Dashboard</h1>
+                    <p class="subtitle">Plan your day. Track your progress.</p>
+                </div>
+                <div class="date-badge" id="todayDate"></div>
+            </header>
 
-const $ = (s) => document.querySelector(s);
-const KEY = 'studyTracker.v1';
+            <section class="welcome-card">
+                <div>
+                    <p class="welcome-label">WELCOME BACK 👋</p>
+                    <h2>Ready to learn something new?</h2>
+                    <p>Stay consistent and make every study session count.</p>
+                </div>
+                <div class="welcome-symbol">✦</div>
+            </section>
 
-/* ---------- Storage ---------- */
-const defaults = () => ({ tasks: [], minutes: 0, sessions: 0, theme: null });
-function load() {
-  try { return { ...defaults(), ...JSON.parse(localStorage.getItem(KEY)) }; }
-  catch { return defaults(); }              // corrupted or blocked storage: start fresh
-}
-function save() {
-  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* storage full or blocked */ }
-}
-const state = load();
+            <section class="stats-grid">
+                <article class="stat-card">
+                    <div class="stat-top">
+                        <span>Total Subjects</span>
+                        <span class="stat-icon purple-bg">▤</span>
+                    </div>
+                    <h2 id="totalSubjects">0</h2>
+                    <p>Your learning areas</p>
+                </article>
 
-/* ---------- Theme (dark/light via CSS variables on <html data-theme>) ---------- */
-function applyTheme() {
-  const dark = state.theme ? state.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
-  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-  $('#themeBtn').textContent = dark ? 'Light mode' : 'Dark mode';
-}
-$('#themeBtn').addEventListener('click', () => {
-  state.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
-  save(); applyTheme();
-});
+                <article class="stat-card">
+                    <div class="stat-top">
+                        <span>Total Tasks</span>
+                        <span class="stat-icon blue-bg">☷</span>
+                    </div>
+                    <h2 id="totalTasks">0</h2>
+                    <p>Tasks in your tracker</p>
+                </article>
 
-/* ---------- Helpers ---------- */
-const esc = (s) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const parseDate = (iso) => { const [y, m, d] = iso.split('-').map(Number); return new Date(y, m - 1, d); };
-const fmtDue = (iso) => iso ? parseDate(iso).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }) : 'No due date';
-function isLate(t) {
-  if (t.done || !t.due) return false;
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  return parseDate(t.due) < today;
-}
+                <article class="stat-card">
+                    <div class="stat-top">
+                        <span>Completed</span>
+                        <span class="stat-icon green-bg">✓</span>
+                    </div>
+                    <h2 id="completedTasks">0</h2>
+                    <p>Tasks finished</p>
+                </article>
 
-/* ---------- Dashboard stats ---------- */
-function renderStats() {
-  $('#statTotal').textContent = state.tasks.length;
-  $('#statDone').textContent = state.tasks.filter((t) => t.done).length;
-  $('#statHours').textContent = (state.minutes / 60).toFixed(1);
-  $('#statSessions').textContent = state.sessions;
-}
+                <article class="stat-card">
+                    <div class="stat-top">
+                        <span>Progress</span>
+                        <span class="stat-icon orange-bg">↗</span>
+                    </div>
+                    <h2 id="progressPercent">0%</h2>
+                    <p>Overall completion</p>
+                </article>
+            </section>
 
-/* ---------- Tasks ---------- */
-let statusFilter = 'all', courseFilter = 'all';
+            <section class="panel progress-panel">
+                <div class="section-heading">
+                    <div>
+                        <h2>Overall Progress</h2>
+                        <p>Every completed task moves you forward.</p>
+                    </div>
+                    <span class="progress-label" id="progressLabel">0% completed</span>
+                </div>
+                <div class="progress-track">
+                    <div class="progress-fill" id="progressBar"></div>
+                </div>
+            </section>
 
-function renderCourses() {
-  const courses = [...new Set(state.tasks.map((t) => t.course))].sort();
-  if (courseFilter !== 'all' && !courses.includes(courseFilter)) courseFilter = 'all';
-  $('#courseFilter').innerHTML = '<option value="all">All courses</option>' +
-    courses.map((c) => `<option value="${esc(c)}"${c === courseFilter ? ' selected' : ''}>${esc(c)}</option>`).join('');
-  $('#courseList').innerHTML = courses.map((c) => `<option value="${esc(c)}">`).join('');  // autocomplete in the form
-}
+            <section class="content-grid">
 
-function renderTasks() {
-  const items = state.tasks
-    .filter((t) => statusFilter === 'all' || (statusFilter === 'done' ? t.done : !t.done))
-    .filter((t) => courseFilter === 'all' || t.course === courseFilter)
-    .sort((a, b) => a.done - b.done || (a.due || '9999').localeCompare(b.due || '9999'));  // pending first, soonest due first
+                <div class="panel" id="subjects">
+                    <div class="section-heading">
+                        <div>
+                            <h2>My Subjects</h2>
+                            <p>Organize what you are learning.</p>
+                        </div>
+                    </div>
 
-  $('#taskList').innerHTML = items.length ? items.map((t) => `
-    <li class="task prio-${t.prio}${t.done ? ' done' : ''}" data-id="${t.id}">
-      <button class="check" type="button" aria-label="Mark complete" aria-pressed="${t.done}">
-        <svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" pathLength="1"/></svg>
-      </button>
-      <div class="body">
-        <div class="title">${esc(t.title)}</div>
-        <div class="chips">
-          <span class="chip">${esc(t.course)}</span>
-          <span class="chip${isLate(t) ? ' late' : ''}">${isLate(t) ? 'Overdue: ' : ''}${fmtDue(t.due)}</span>
-          <span class="chip">${t.prio[0].toUpperCase() + t.prio.slice(1)} priority</span>
-        </div>
-      </div>
-      <button class="del" type="button" aria-label="Delete task">&times;</button>
-    </li>`).join('')
-    : `<li class="empty">${state.tasks.length ? 'No tasks match these filters.' : 'No tasks yet. Add your first assignment above.'}</li>`;
-}
+                    <form id="subjectForm" class="form">
+                        <label for="subjectName">Subject name</label>
+                        <div class="input-row">
+                            <input
+                                type="text"
+                                id="subjectName"
+                                placeholder="e.g. C Programming"
+                                maxlength="50"
+                                required
+                            >
+                            <button type="submit" class="primary-btn">+ Add</button>
+                        </div>
+                    </form>
 
-function refresh() { renderStats(); renderCourses(); renderTasks(); }
+                    <div id="subjectList" class="subject-list"></div>
+                </div>
 
-$('#taskForm').addEventListener('submit', (e) => {
-  e.preventDefault();
-  state.tasks.push({
-    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-    title: $('#fTitle').value.trim(),
-    course: $('#fCourse').value.trim(),
-    due: $('#fDue').value,
-    prio: $('#fPrio').value,
-    done: false,
-  });
-  save(); e.target.reset(); $('#fPrio').value = 'medium'; refresh(); $('#fTitle').focus();
-});
+                <div class="panel" id="tasks">
+                    <div class="section-heading">
+                        <div>
+                            <h2>Study Tasks</h2>
+                            <p>One task at a time.</p>
+                        </div>
+                    </div>
 
-// One listener handles every checkmark and delete button (event delegation)
-$('#taskList').addEventListener('click', (e) => {
-  const li = e.target.closest('.task'); if (!li) return;
-  const task = state.tasks.find((t) => t.id === li.dataset.id);
-  if (e.target.closest('.check')) {
-    task.done = !task.done; save();
-    li.classList.toggle('done', task.done);        // plays the check and strike-through animation
-    renderStats();
-    setTimeout(renderTasks, 450);                  // then re-sort after the animation finishes
-  } else if (e.target.closest('.del')) {
-    state.tasks = state.tasks.filter((t) => t.id !== task.id); save(); refresh();
-  }
-});
+                    <form id="taskForm" class="form">
+                        <label for="taskName">Task name</label>
+                        <input
+                            type="text"
+                            id="taskName"
+                            placeholder="e.g. Practice loops"
+                            maxlength="100"
+                            required
+                        >
 
-document.querySelectorAll('[data-status]').forEach((b) => b.addEventListener('click', () => {
-  statusFilter = b.dataset.status;
-  document.querySelectorAll('[data-status]').forEach((x) => x.classList.toggle('on', x === b));
-  renderTasks();
-}));
-$('#courseFilter').addEventListener('change', (e) => { courseFilter = e.target.value; renderTasks(); });
+                        <label for="taskSubject">Choose subject</label>
+                        <select id="taskSubject" required>
+                            <option value="">Select a subject</option>
+                        </select>
 
-/* ---------- Pomodoro timer ---------- */
-const MODES = { work: { label: 'Focus', secs: 25 * 60 }, break: { label: 'Break', secs: 5 * 60 } };
-const CIRC = 2 * Math.PI * 88;                    // ring circumference (matches r=88 in the SVG)
-let mode = 'work', remaining = MODES.work.secs, endAt = 0, ticker = null;
+                        <button type="submit" class="primary-btn full-btn">
+                            + Add Study Task
+                        </button>
+                    </form>
 
-function renderTimer() {
-  const m = String(Math.floor(remaining / 60)).padStart(2, '0');
-  const s = String(remaining % 60).padStart(2, '0');
-  $('#clock').textContent = `${m}:${s}`;
-  $('#modeLabel').textContent = MODES[mode].label;
-  $('#ring').style.strokeDashoffset = CIRC * (1 - remaining / MODES[mode].secs);
-  $('.timer').classList.toggle('is-break', mode === 'break');
-  $('#startBtn').disabled = !!ticker;
-  $('#pauseBtn').disabled = !ticker;
-  document.title = ticker ? `${m}:${s} ${MODES[mode].label} | Study Tracker` : 'Study Tracker';
-}
+                    <div class="task-filters">
+                        <button type="button" class="filter-btn active"
+                            data-filter="all">All</button>
+                        <button type="button" class="filter-btn"
+                            data-filter="pending">Pending</button>
+                        <button type="button" class="filter-btn"
+                            data-filter="completed">Completed</button>
+                    </div>
 
-function tick() {
-  // Based on a fixed end time, so the clock stays accurate even if the tab is throttled
-  remaining = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
-  if (remaining === 0) return finish();
-  renderTimer();
-}
-function start() { if (ticker) return; endAt = Date.now() + remaining * 1000; ticker = setInterval(tick, 250); renderTimer(); }
-function pause() { clearInterval(ticker); ticker = null; renderTimer(); }
-function reset() { pause(); remaining = MODES[mode].secs; renderTimer(); }
-function setMode(m) {
-  mode = m; pause(); remaining = MODES[m].secs;
-  document.querySelectorAll('[data-mode]').forEach((b) => b.classList.toggle('on', b.dataset.mode === m));
-  renderTimer();
-}
-function finish() {
-  if (mode === 'work') { state.minutes += MODES.work.secs / 60; state.sessions++; save(); renderStats(); }
-  beep();
-  setMode(mode === 'work' ? 'break' : 'work');    // switch automatically; press Start for the next round
-}
-function beep() {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator(), gain = ctx.createGain();
-    osc.frequency.value = 660; gain.gain.value = 0.1;
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.start(); osc.stop(ctx.currentTime + 0.4);
-  } catch { /* audio not available */ }
-}
+                    <div id="taskList" class="task-list"></div>
+                </div>
 
-$('#startBtn').addEventListener('click', start);
-$('#pauseBtn').addEventListener('click', pause);
-$('#resetBtn').addEventListener('click', reset);
-document.querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.mode)));
+            </section>
 
-/* ---------- Init ---------- */
-applyTheme(); refresh(); renderTimer();
+            <footer class="page-footer">
+                Made for your learning journey <span>♥</span>
+            </footer>
 
-</script>
+        </main>
+    </div>
+
 </body>
 </html>
